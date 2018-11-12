@@ -8,8 +8,9 @@ const PATH = require('path')
  * sure multiple IPFS nodes don’t use the same S3 bucket as a datastore at the same time.
  */
 class S3Lock {
-  constructor (s3Datastore) {
-    this.s3 = s3Datastore
+  constructor (s3Datastore, lockName) {
+    this.s3 = s3Datastore,
+    this.lockName = lockName
   }
 
   /**
@@ -39,7 +40,7 @@ class S3Lock {
       }
 
       // There's no lock yet, create one
-      this.s3.put(lockPath, Buffer.from(''), (err, data) => {
+      this.s3.put(lockPath, Buffer.from(this.lockName), (err, data) => {
         if (err) {
           return callback(err, null)
         }
@@ -107,6 +108,8 @@ class S3Lock {
         return callback(null, false)
       } else if (err) {
         return callback(err)
+      } else if (this.lockName === data.toString()) {
+        return callback(null, false)
       }
 
       callback(null, true)
