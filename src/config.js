@@ -5,6 +5,7 @@ const ipfsRepoLockName  = process.env.IPFS_REPO_LOCK_NAME || `${Date.now()}`
 const ipfsRepoPath = process.env.IPFS_REPO_PATH || '/'
 
 const port = parseInt(process.env.PORT || 3000)
+const fileKey = process.env.FILE_KEY
 
 const ipfsConfig = {
   "Addresses": {
@@ -24,5 +25,6 @@ export default {
   ipfsRepoLockName,
   ipfsRepoPath,
   ipfsConfig,
-  port
+  port,
+  fileKey
 }

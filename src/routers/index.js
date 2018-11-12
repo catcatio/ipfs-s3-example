@@ -1,16 +1,84 @@
 import { Router } from 'express'
+import AESCrypto from '../AESCrypto'
+import { Duplex } from 'stream'
+// import { bufferToStream } from '../buffer'
+
+// const { bufferToStream } =  require('../buffer')
+
+const bufferToStream = (buffer) => {
+  const stream = new Duplex()
+  stream.push(buffer)
+  stream.push(null)
+  return stream
+}
+
+const doUpload = async (ipfs, path, data, fileKey = '') => {
+  console.log('doUpload', path, data, fileKey)
+  let content = bufferToStream(data)
+  if (fileKey) {
+    content = content.pipe(AESCrypto(fileKey).encryptStream())
+  }
+
+  return await ipfs.files.add({
+    path,
+    content
+  })
+}
 
 const upload = (ipfs) => async (req, res) => {
-  res.send('upload')
+  const files = req.files
+  const result = await doUpload(ipfs, files.upload.name, files.upload.data)
+  console.log(result)
+  res.json(result.hash)
+}
+
+const supload = (ipfs, defailtFileKey) => async (req, res) => {
+  const files = req.files
+  const fileKey = req.query.fileKey
+  const result = await doUpload(ipfs, files.upload.name, files.upload.data, fileKey || defailtFileKey)
+  console.log(result)
+  res.json(result.hash)
+}
+
+const ipfsDownloadStream = (ipfs, ipfspath) => {
+  return ipfs.files.catReadableStream(ipfspath)
 }
 
 const download = (ipfs) => async (req, res) => {
-  res.send('download')
+  const ipfspath = req.path
+  ipfsDownloadStream(ipfs, ipfspath)
+    .on('error', (err) => {
+      console.log(err)
+      // can be =>  Error: No such file
+      res.status(400).send(err)
+    })
+    .pipe(res)
 }
 
-export default (ipfs) => {
+const sdownload = (ipfs, defailtFileKey) => async (req, res) => {
+  const ipfspath = req.path
+  const fileKey = req.query.fileKey
+  const aesCrypto = AESCrypto(fileKey || defailtFileKey)
+
+  try {
+    const readStream = ipfs.files.catReadableStream(ipfspath)
+    readStream.on('error', (err) => {
+      console.log(err)
+      // can be =>  Error: No such file
+      res.status(400).send(err)
+    })
+      .pipe(aesCrypto.decryptStream())
+      .pipe(res)
+  } catch (error) {
+    console.log(error)
+  }
+}
+
+export default (ipfs, { fileKey }) => {
   const router = Router()
-  router.use('/upload', upload(ipfs))
+  router.post('/s-upload', supload(ipfs, fileKey))
+  router.post('/upload', upload(ipfs))
+  router.use('/s-download', sdownload(ipfs, fileKey))
   router.use('/download', download(ipfs))
   router.use('/', (req, res) => res.send('ok'))
   return router
