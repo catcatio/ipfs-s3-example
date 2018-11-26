@@ -1,5 +1,5 @@
 {
-  "name": "ipfs-s3-perf",
+  "name": "ipfs-s3-example",
   "version": "1.0.0",
   "description": "",
   "main": "src/index.js",
